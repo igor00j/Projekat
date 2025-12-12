@@ -1,0 +1,105 @@
+PYTHON KOD
+import numpy as np
+import scipy.io.wavfile as wav
+import os
+
+def ring_modulator(input_file, output_file, mod_freq=400):
+    """
+    Implementacija Ring Modulator algoritma.
+    Vrši množenje ulaznog audio signala sa sinusnim nosiocem zadate frekvencije.
+
+    :param input_file: Putanja do ulaznog .wav fajla.
+    :param output_file: Putanja za izlazni .wav fajl.
+    :param mod_freq: Frekvencija modulacije (u Hz). Preporučeno 300-500 Hz.
+    """
+    if not os.path.exists(input_file):
+        print(f"Greška: Ulazni fajl '{input_file}' nije pronađen.")
+        return
+
+    try:
+        # 1. Učitavanje fajla
+        fs, data = wav.read(input_file)
+    except Exception as e:
+        print(f"Greška pri učitavanju fajla: {e}")
+        return
+
+    # Provera i normalizacija podataka
+    if len(data.shape) > 1:
+        # Ako je stereo, uzima se samo levi kanal radi jednostavnosti obrade
+        data = data[:, 0]
+
+    # Prebacivanje u float format za matematičke operacije
+    # Standardni 16-bitni WAV ima opseg -32768 do 32767
+    max_val = np.iinfo(data.dtype).max
+    data_float = data.astype(np.float64) / max_val
+    
+    print(f"--- Detalji obrade ---")
+    print(f"Učitan fajl: {input_file}")
+    print(f"Frekvencija uzorkovanja (fs): {fs} Hz")
+    print(f"Frekvencija modulacije (f_mod): {mod_freq} Hz")
+    print(f"Ukupno uzoraka: {len(data)}")
+
+    # 2. Generisanje sinusnog nosioca (Carrier signal)
+    # Tabela diskretnih trenutaka
+    t = np.arange(len(data)) / fs 
+    
+    # Generisanje sinusa prema formuli c[n] = sin(2 * pi * f_mod * t)
+    carrier = np.sin(2 * np.pi * mod_freq * t)
+    
+    # 3. Ring Modulacija (jezgro hardverske logike - množenje)
+    output_float = data_float * carrier
+    
+    # 4. Vraćanje u originalni 16-bitni format za snimanje
+    # Skaliranje nazad na opseg -32767 do 32767
+    output_int16 = np.int16(output_float * max_val)
+
+    # 5. Snimanje rezultata
+    wav.write(output_file, fs, output_int16)
+    print(f"Obrada uspešno završena. Rezultat sačuvan u: {output_file}")
+
+# =================================================================
+# Pokretanje skripte i testiranje
+# =================================================================
+if __name__ == "__main__":
+    # NAPOMENA: Potrebno je imati fajl 'input.wav' u istom folderu
+    # (npr. snimak sebe kako govoriš: "Ovo je test za moj projekat.")
+    
+    ulaz = 'input.wav'
+    izlaz = 'output_robot.wav'
+    
+    # Frekvencija od 450 Hz daje tipičan "robotski" glas
+    ring_modulator(ulaz, izlaz, mod_freq=450)
+    
+    print("\nIzvršna specifikacija je završena. Sledi hardverska implementacija.")
+
+#PROFILING
+#Pošto ja ne mogu pokrenuti kod na tvom sistemu, daću ti uputstvo i modifikovanu verziju koda koja koristi standardni Python modul za #profajliranje, cProfile.
+#1. Modifikacija Koda za Profiling
+#Potrebno je zameniti if __name__ == "__main__": blok u tvojoj Python skripti sledećim kodom. Time se osigurava da se cela funkcija #ring_modulator izvršava pod nadzorom profajlera.
+import cProfile
+import pstats
+# ... (ostatak tvog koda: importi i funkcija ring_modulator) ...
+
+if __name__ == "__main__":
+    ulaz = 'input.wav'
+    izlaz = 'output_robot.wav'
+    
+    # 1. Kreiranje profajlera
+    profiler = cProfile.Profile()
+    
+    # 2. Pokretanje funkcije ring_modulator unutar profajlera
+    profiler.enable()
+    ring_modulator(ulaz, izlaz, mod_freq=450)
+    profiler.disable()
+    
+    # 3. Kreiranje izveštaja (profiling rezultati)
+    stats = pstats.Stats(profiler).sort_stats('cumtime')
+    
+    # Prikazivanje Top 10 funkcija koje su potrošile najviše vremena
+    print("\n=======================================================")
+    print("      IZVEŠTAJ PROFILINGA (Najviše kumulativnog vremena)")
+    print("=======================================================")
+    stats.print_stats(10)
+    print("=======================================================\n")
+
+
